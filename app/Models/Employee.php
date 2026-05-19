@@ -2,9 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class Employee extends Model
+class Employee extends Authenticatable
 {
-    protected $fillable = ['name', 'rfid_uid','face_descriptor','is_active'];
+    protected $fillable = ['name', 'rfid_uid', 'face_descriptor', 'is_active'];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
 }
