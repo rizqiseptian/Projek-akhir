@@ -6,9 +6,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class Employee extends Authenticatable
 {
-    protected $fillable = ['name', 'rfid_uid', 'face_descriptor', 'is_active'];
+    protected $fillable = ['name', 'rfid_uid', 'face_descriptor', 'is_active', 'is_admin'];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_admin' => 'boolean',
     ];
 }

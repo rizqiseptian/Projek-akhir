@@ -28,15 +28,20 @@ class AuthenticateFilamentEmployee extends Middleware
 
         /** @var Model $user */
         $user  = $guard->user();
+
+        // Restrict admin panel paths to administrators only
+        if ($request->is('admin*')) {
+            abort_unless($user && $user->is_admin, 403);
+        }
+
         $panel = Filament::getCurrentOrDefaultPanel();
 
-        // Allow access if not using FilamentUser (works in local env too).
-        abort_if(
-            $user instanceof FilamentUser
-                ? (! $user->canAccessPanel($panel))
-                : (config('app.env') !== 'local'),
-            403
-        );
+        // If the user implements FilamentUser, defer to canAccessPanel().
+        // For our Employee model (which does not implement FilamentUser) we
+        // rely solely on the is_admin gate above, so we skip the abort here.
+        if ($user instanceof FilamentUser && ! $user->canAccessPanel($panel)) {
+            abort(403);
+        }
     }
 
     /**
@@ -44,6 +49,13 @@ class AuthenticateFilamentEmployee extends Middleware
      */
     protected function redirectTo($request): ?string
     {
+        // If the requested path is for the admin panel, send users
+        // to the admin-specific login page so the frontend can set
+        // the correct `redirectTo` target (e.g. /admin).
+        if ($request->is('admin*')) {
+            return route('admin.login');
+        }
+
         return route('employee.login');
     }
 }

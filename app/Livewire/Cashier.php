@@ -1,36 +1,27 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Livewire;
 
-use Filament\Pages\Page;
-
+use Livewire\Component;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
-use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 
-class Cashier extends Page
+class Cashier extends Component
 {
-    protected string $view = 'filament.pages.cashier';
-
-    public static function getNavigationIcon(): ?string
-    {
-        return 'heroicon-o-shopping-cart';
-    }
-
     public $cart = [];
     public $newItemDescription = '';
     public $newItemPrice = '';
     public $cashPaid = '';
+    public $successMessage = '';
+    public $errorMessage = '';
 
     public function addItem()
     {
+        $this->resetMessages();
+
         if (empty($this->newItemDescription) || !is_numeric($this->newItemPrice) || $this->newItemPrice <= 0) {
-            Notification::make()
-                ->title('Invalid Input')
-                ->body('Please enter a valid item name and price.')
-                ->danger()
-                ->send();
+            $this->errorMessage = 'Please enter a valid item name and price.';
             return;
         }
 
@@ -44,6 +35,7 @@ class Cashier extends Page
 
     public function removeItem($index)
     {
+        $this->resetMessages();
         if (isset($this->cart[$index])) {
             unset($this->cart[$index]);
             $this->cart = array_values($this->cart); // Re-index array
@@ -61,29 +53,29 @@ class Cashier extends Page
         return max(0, $cash - $this->total);
     }
 
+    private function resetMessages()
+    {
+        $this->successMessage = '';
+        $this->errorMessage = '';
+    }
+
     public function completeTransaction()
     {
+        $this->resetMessages();
+
         if (empty($this->cart)) {
-            Notification::make()
-                ->title('Empty Cart')
-                ->body('Cannot complete an empty transaction.')
-                ->warning()
-                ->send();
+            $this->errorMessage = 'Cannot complete an empty transaction.';
             return;
         }
 
         $cash = (float) ($this->cashPaid ?: 0);
         if ($cash < $this->total) {
-            Notification::make()
-                ->title('Insufficient Cash')
-                ->body('The cash paid is less than the total amount.')
-                ->danger()
-                ->send();
+            $this->errorMessage = 'The cash paid is less than the total amount.';
             return;
         }
 
         $transaction = Transaction::create([
-            'employee_id' => Auth::id(),
+            'employee_id' => Auth::id() ?? 1, // Fallback if no auth for standalone route
             'total_amount' => $this->total,
             'cash_paid' => $cash,
             'change_returned' => $this->change,
@@ -97,12 +89,12 @@ class Cashier extends Page
             ]);
         }
 
-        Notification::make()
-            ->title('Transaction Complete')
-            ->body('Transaction saved successfully. Change: $' . number_format($this->change, 2))
-            ->success()
-            ->send();
-
+        $this->successMessage = 'Transaction saved successfully. Change: $' . number_format($this->change, 2);
         $this->reset(['cart', 'newItemDescription', 'newItemPrice', 'cashPaid']);
+    }
+
+    public function render()
+    {
+        return view('livewire.cashier')->layout('layouts.app');
     }
 }

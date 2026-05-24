@@ -1,31 +1,31 @@
 <?php
 
-namespace App\Filament\Resources\Employees\Schemas;
+namespace App\Filament\Resources\Admins\Schemas;
 
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ViewField;
 use Filament\Forms\Components\Hidden;
 use Filament\Schemas\Schema;
 
-class EmployeeForm
+class AdminForm
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema
             ->schema([
                 TextInput::make('name')
-                    ->label('Employee Name')
+                    ->label('Admin Name')
                     ->required()
-                    ->placeholder('e.g. John Doe')
+                    ->placeholder('e.g. Jane Doe')
                     ->maxLength(255),
                 
                 TextInput::make('rfid_uid')
                     ->label('Scan RFID Card')
                     ->required()
                     ->unique(ignoreRecord: true)
-                    ->autofocus() // Focuses the cursor here automatically
+                    ->autofocus()
                     ->helperText('Please tap the ID card on the reader to populate this field.')
-                    ->extraInputAttributes(['autocomplete' => 'off']), // Stops browser suggestions
+                    ->extraInputAttributes(['autocomplete' => 'off']),
                     
                 ViewField::make('face_descriptor')
                     ->label('Facial Registration')
@@ -34,7 +34,7 @@ class EmployeeForm
                     ->columnSpanFull(),
 
                 Hidden::make('is_admin')
-                    ->default(false),
+                    ->default(true),
             ]);
     }
 }

@@ -389,7 +389,7 @@
             </svg>
         </div>
         <h1>{{ config('app.name') }}</h1>
-        <p class="subtitle">Employee Access System &bull; RFID &amp; Face Verification</p>
+        <p class="subtitle">{{ $title ?? 'Employee Access System' }} &bull; RFID &amp; Face Verification</p>
 
         <!-- Camera Feed -->
         <div class="camera-box">
@@ -435,7 +435,11 @@
         <!-- Hidden RFID input (focused always) -->
         <input type="password" id="scanner-field" autocomplete="off" />
 
-        <a href="/admin/login" class="admin-link">Admin Panel Login &rarr;</a>
+        @if(request()->routeIs('admin.login'))
+            <a href="{{ route('employee.login') }}" class="admin-link">&larr; Back to Cashier Login</a>
+        @else
+            <a href="{{ route('admin.login') }}" class="admin-link">Admin Panel Login &rarr;</a>
+        @endif
     </div>
 
     <!-- Toast Container -->
@@ -470,6 +474,8 @@
         const VERIFY_URL  = '{{ route('employee.verify') }}';
         const BYPASS_URL  = '{{ route('employee.emergencyBypass') }}';
         const CSRF        = document.querySelector('meta[name="csrf-token"]').content;
+        const REDIRECT_TARGET = '{{ $redirectTo ?? (request()->routeIs('admin.login') ? '/admin' : '/cashier') }}';
+        const DEFAULT_REDIRECT = '{{ request()->routeIs('admin.login') ? '/admin' : '/cashier' }}';
 
         // Elements
         const video       = document.getElementById('camera-video');
@@ -543,14 +549,14 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': CSRF,
                     },
-                    body: JSON.stringify({ pin }),
+                    body: JSON.stringify({ pin, redirect_to: REDIRECT_TARGET }),
                 });
                 const data = await res.json();
 
                 if (data.success) {
                     showToast('Emergency Access Granted!', 'success');
                     btn.textContent = 'Redirecting...';
-                    setTimeout(() => { window.location.href = data.redirect || '/admin'; }, 800);
+                    setTimeout(() => { window.location.href = data.redirect || DEFAULT_REDIRECT; }, 800);
                 } else {
                     showToast(data.message || 'Access denied.', 'error');
                     btn.disabled = false;
@@ -647,13 +653,13 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': CSRF,
                     },
-                    body: JSON.stringify({ rfid_uid: rfidUid, face_descriptor: descriptorJson }),
+                    body: JSON.stringify({ rfid_uid: rfidUid, face_descriptor: descriptorJson, redirect_to: REDIRECT_TARGET }),
                 });
                 const data = await res.json();
 
                 if (data.success) {
                     showToast('Access Granted! Welcome.', 'success');
-                    setTimeout(() => { window.location.href = data.redirect || '/admin'; }, 800);
+                    setTimeout(() => { window.location.href = data.redirect || DEFAULT_REDIRECT; }, 800);
                 } else {
                     showToast(data.message || 'Access denied.', 'error');
                     setLockedState();
