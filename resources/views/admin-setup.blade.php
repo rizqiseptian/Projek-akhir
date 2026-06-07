@@ -438,10 +438,17 @@
                 <label for="admin-name">Full Name</label>
                 <input type="text" id="admin-name" class="name-input" placeholder="e.g. John Doe" autocomplete="off" />
             </div>
+            <div class="name-field">
+                <label for="admin-whatsapp">Administrator WhatsApp</label>
+                <input type="tel" id="admin-whatsapp" class="name-input" placeholder="+6281234567890" autocomplete="off" />
+                <p class="subtitle" style="margin-top:8px;color:rgba(255,255,255,0.45);font-size:0.75rem;line-height:1.4;">
+                    Required for emergency OTP delivery via the WhatsApp bot.
+                </p>
+            </div>
             <button class="btn-primary" id="btn-next-1" onclick="goToStep2()">
                 Continue to RFID Scan &rarr;
             </button>
-            <div class="error-msg" id="error-1">Please enter your full name.</div>
+            <div class="error-msg" id="error-1">Please enter your full name and WhatsApp number.</div>
         </div>
 
         <!-- Step 2: RFID Scan -->
@@ -512,6 +519,7 @@
         const CSRF         = document.querySelector('meta[name="csrf-token"]').content;
 
         let adminName       = '';
+        let adminWhatsapp   = '';
         let rfidUid         = '';
         let rfidBuffer      = '';
         let faceDescriptor  = null;
@@ -567,8 +575,26 @@
 
         window.goToStep2 = function() {
             const name = document.getElementById('admin-name').value.trim();
-            if (!name) { showError('error-1', 'Please enter your full name.'); return; }
+            const whatsapp = document.getElementById('admin-whatsapp').value.trim();
+            const whatsappPattern = /^\+?[0-9]{8,20}$/;
+
+            if (!name) {
+                showError('error-1', 'Please enter your full name.');
+                return;
+            }
+
+            if (!whatsapp) {
+                showError('error-1', 'Please enter your WhatsApp number.');
+                return;
+            }
+
+            if (!whatsappPattern.test(whatsapp)) {
+                showError('error-1', 'Please enter a valid WhatsApp number including country code.');
+                return;
+            }
+
             adminName = name;
+            adminWhatsapp = whatsapp;
             setStep(2);
             // Give focus to the hidden RFID scanner input
             setTimeout(() => rfidInput.focus(), 150);
@@ -756,9 +782,10 @@
                         'X-CSRF-TOKEN': CSRF,
                     },
                     body: JSON.stringify({
-                        name:            adminName,
-                        rfid_uid:        rfidUid,
-                        face_descriptor: JSON.stringify(faceDescriptor),
+                        name:             adminName,
+                        whatsapp_number:  adminWhatsapp,
+                        rfid_uid:         rfidUid,
+                        face_descriptor:  JSON.stringify(faceDescriptor),
                     }),
                 });
                 const data = await res.json();

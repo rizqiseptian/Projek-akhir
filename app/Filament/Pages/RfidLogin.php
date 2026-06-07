@@ -45,7 +45,7 @@ class RfidLogin extends Page
     }
 
     public function verifyFaceMatch($capturedDescriptorJson)
-    {
+   {
         if (!$this->pending_employee_id) {
             return;
         }

@@ -2,48 +2,206 @@
     :component="$getFieldWrapperView()"
     :field="$field"
 >
+    <style>
+        .face-capture-container {
+            font-family: 'Inter', sans-serif;
+            position: relative;
+        }
+
+        /* Camera box */
+        .camera-box {
+            position: relative;
+            width: 100%;
+            max-width: 320px;
+            height: 200px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            overflow: hidden;
+            margin: 0 auto 16px;
+        }
+        .camera-box video, .camera-box canvas {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+        }
+        .camera-box canvas { pointer-events: none; }
+        .camera-placeholder {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 10px;
+            color: rgba(255,255,255,0.3);
+        }
+        .camera-placeholder svg { width: 36px; height: 36px; }
+        .camera-placeholder span { font-size: 0.78rem; }
+
+        .scanning-overlay {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.75);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 12px;
+            color: #fff;
+            font-size: 0.9rem;
+            z-index: 10;
+        }
+        .spinner {
+            width: 36px; height: 36px;
+            border: 3px solid rgba(124,58,237,0.3);
+            border-top-color: #7c3aed;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Corner scan lines */
+        .scan-corner {
+            position: absolute;
+            width: 22px; height: 22px;
+            border-color: #7c3aed;
+            border-style: solid;
+            opacity: 0.6;
+        }
+        .corner-tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+        .corner-tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
+        .corner-bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
+        .corner-br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+
+        .face-captured-overlay {
+            position: absolute; inset: 0;
+            background: rgba(6, 20, 18, 0.8);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 8px;
+            color: #34d399;
+        }
+        .face-captured-overlay svg { width: 40px; height: 40px; }
+        .face-captured-overlay span { font-size: 0.88rem; font-weight: 600; }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #6d28d9, #4338ca);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(124,58,237,0.4);
+        }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-success {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-success:hover {
+            background: linear-gradient(135deg, #047857, #065f46);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(5,150,105,0.4);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        /* Error message */
+        .error-msg {
+            color: #f87171;
+            font-size: 0.78rem;
+            font-weight: 500;
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.2);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            text-align: center;
+        }
+    </style>
+
     <div x-data="faceCaptureComponent({
             state: $wire.$entangle('{{ $getStatePath() }}')
         })"
         x-on:destroyed="destroy"
-        class="flex flex-col items-center space-y-4 py-4"
+        class="face-capture-container flex flex-col items-center py-2"
     >
-        <!-- Video element for webcam -->
-        <div class="relative w-full max-w-md bg-gray-100 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 dark:bg-gray-800 flex justify-center min-h-[250px]">
-            <video x-ref="video" autoplay muted playsinline class="w-full h-auto" x-show="isCameraActive"></video>
-            <canvas x-ref="canvas" class="absolute top-0 left-0 w-full h-full pointer-events-none" x-show="isCameraActive"></canvas>
-            
-            <div x-show="!isCameraActive && !state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-                <x-heroicon-o-camera class="w-12 h-12 mb-2 opacity-50" />
-                <span>Camera is off</span>
+        <!-- Camera Feed -->
+        <div class="camera-box">
+            <div class="scan-corner corner-tl"></div>
+            <div class="scan-corner corner-tr"></div>
+            <div class="scan-corner corner-bl"></div>
+            <div class="scan-corner corner-br"></div>
+
+            <video x-ref="video" autoplay muted playsinline style="display:none;"></video>
+            <canvas x-ref="canvas" style="display:none;"></canvas>
+
+            <div class="camera-placeholder" x-show="!isCameraActive && !state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z"/>
+                </svg>
+                <span x-text="isLoading ? loadingText : 'Camera is off'"></span>
             </div>
 
-            <div x-show="state" class="absolute inset-0 flex flex-col items-center justify-center bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400">
-                <x-heroicon-o-check-badge class="w-16 h-16 mb-2" />
-                <span class="font-bold">Face Descriptor Captured</span>
-            </div>
-            
-            <div x-show="isLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 bg-opacity-75 text-white z-10">
-                <x-heroicon-o-arrow-path class="w-8 h-8 animate-spin mb-2" />
+            <div class="scanning-overlay" x-show="isLoading && isCameraActive">
+                <div class="spinner"></div>
                 <span x-text="loadingText"></span>
             </div>
+
+            <div class="face-captured-overlay" x-show="state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                </svg>
+                <span>Face Registered!</span>
+            </div>
         </div>
 
-        <div class="flex space-x-4">
-            <x-filament::button type="button" color="primary" x-on:click="startCamera" x-show="!isCameraActive && !state" x-bind:disabled="!modelsLoaded">
-                <span x-text="modelsLoaded ? 'Start Camera' : 'Loading Models...'"></span>
-            </x-filament::button>
-            <x-filament::button type="button" color="success" x-on:click="captureFace" x-show="isCameraActive">
+        <div class="flex space-x-2 mt-3">
+            <button type="button" class="btn-primary" x-on:click="startCamera" x-show="!isCameraActive && !state" x-bind:disabled="!modelsLoaded">
+                <span x-text="modelsLoaded ? 'Start Camera' : 'Loading...'"></span>
+            </button>
+            <button type="button" class="btn-success" x-on:click="captureFace" x-show="isCameraActive">
                 Capture Face
-            </x-filament::button>
-            <x-filament::button type="button" color="danger" x-on:click="retakeFace" x-show="state">
-                Retake
-            </x-filament::button>
+            </button>
+            <button type="button" class="btn-danger" x-on:click="retakeFace" x-show="state">
+                Retake Photo
+            </button>
         </div>
-        
+
         <!-- Error message -->
-        <div x-show="errorMessage" class="text-red-600 dark:text-red-400 font-medium flex items-center mt-2 text-sm bg-red-50 dark:bg-red-900/30 p-2 rounded-md" x-text="errorMessage">
-        </div>
+        <div x-show="errorMessage" class="error-msg" x-text="errorMessage"></div>
     </div>
 
     @pushonce('scripts')
@@ -109,6 +267,8 @@
                             video: { facingMode: "user" } 
                         });
                         this.$refs.video.srcObject = this.stream;
+                        this.$refs.video.style.display = '';
+                        this.$refs.canvas.style.display = '';
                         this.isCameraActive = true;
                         
                         // Set up drawing on canvas
@@ -172,6 +332,8 @@
                         this.stream = null;
                     }
                     this.isCameraActive = false;
+                    this.$refs.video.style.display = 'none';
+                    this.$refs.canvas.style.display = 'none';
                     if (this.intervalId) {
                         clearInterval(this.intervalId);
                         this.intervalId = null;

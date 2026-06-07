@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
@@ -70,7 +70,7 @@
         .logo-ring {
             width: 64px; height: 64px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #f59e0b, #d97706);
+            background: linear-gradient(135deg, #0004d7, #9d06d9);
             display: flex; align-items: center; justify-content: center;
             margin: 0 auto 20px;
             box-shadow: 0 0 30px rgba(245,158,11,0.4);
@@ -131,8 +131,8 @@
         }
         .spinner {
             width: 36px; height: 36px;
-            border: 3px solid rgba(245,158,11,0.3);
-            border-top-color: #f59e0b;
+            border: 3px solid rgba(77, 11, 245, 0.3);
+            border-top-color: #6d0bf5;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
@@ -142,7 +142,7 @@
         .scan-corner {
             position: absolute;
             width: 28px; height: 28px;
-            border-color: #f59e0b;
+            border-color: #6d0bf5;
             border-style: solid;
             opacity: 0.7;
         }
@@ -462,9 +462,9 @@
                 </svg>
             </div>
             <h3>Emergency Access</h3>
-            <p>Enter the administrator PIN to bypass<br>RFID &amp; face verification.</p>
-            <input type="password" id="emergency-pin" class="emergency-input" placeholder="Enter Emergency PIN" autocomplete="off" />
-            <button class="emergency-submit" id="emergency-submit-btn" onclick="submitEmergency()">Unlock &amp; Enter Admin</button>
+            <p id="emergency-modal-description">Send a one-time emergency code to the administrator WhatsApp number, then enter it here.</p>
+            <input type="text" id="emergency-otp" class="emergency-input" placeholder="Enter emergency OTP" autocomplete="off" />
+            <button class="emergency-submit" id="emergency-submit-btn" onclick="submitEmergency()">Send OTP</button>
             <button class="emergency-cancel" onclick="closeEmergencyModal()">Cancel</button>
         </div>
     </div>
@@ -512,10 +512,14 @@
         }
 
         // ───── UI state helpers ─────
+        let otpRequested = false;
+
         window.openEmergencyModal = function() {
             document.getElementById('emergency-modal').classList.add('active');
-            document.getElementById('emergency-pin').value = '';
-            setTimeout(() => document.getElementById('emergency-pin').focus(), 150);
+            document.getElementById('emergency-otp').value = '';
+            otpRequested = false;
+            updateEmergencyModalState();
+            setTimeout(() => document.getElementById('emergency-otp').focus(), 150);
         };
 
         window.closeEmergencyModal = function() {
@@ -523,51 +527,80 @@
             rfidInput.focus();
         };
 
-        // Allow pressing Enter inside the PIN field to submit
+        function updateEmergencyModalState() {
+            const btn = document.getElementById('emergency-submit-btn');
+            const description = document.getElementById('emergency-modal-description');
+
+            if (otpRequested) {
+                btn.textContent = 'Verify OTP';
+                description.textContent = 'Enter the 6-digit code sent to the administrator WhatsApp number.';
+            } else {
+                btn.textContent = 'Send OTP';
+                description.textContent = 'Send a one-time emergency code to the administrator WhatsApp number.';
+            }
+        }
+
+        // Allow pressing Enter inside the OTP field to submit
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('emergency-pin').addEventListener('keydown', (e) => {
+            document.getElementById('emergency-otp').addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') { e.preventDefault(); submitEmergency(); }
             });
         });
 
         window.submitEmergency = async function() {
-            const pin = document.getElementById('emergency-pin').value.trim();
+            const otp = document.getElementById('emergency-otp').value.trim();
             const btn = document.getElementById('emergency-submit-btn');
 
-            if (!pin) {
-                showToast('Please enter the emergency PIN.', 'error');
+            if (!otp && otpRequested) {
+                showToast('Please enter the OTP sent to admin WhatsApp.', 'error');
                 return;
             }
 
             btn.disabled = true;
-            btn.textContent = 'Verifying...';
+            btn.textContent = otpRequested ? 'Verifying...' : 'Sending...';
 
             try {
+                const payload = { redirect_to: REDIRECT_TARGET };
+                if (otpRequested) {
+                    payload.otp = otp;
+                } else {
+                    payload.request_otp = true;
+                }
+
                 const res = await fetch(BYPASS_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': CSRF,
                     },
-                    body: JSON.stringify({ pin, redirect_to: REDIRECT_TARGET }),
+                    body: JSON.stringify(payload),
                 });
                 const data = await res.json();
 
                 if (data.success) {
-                    showToast('Emergency Access Granted!', 'success');
-                    btn.textContent = 'Redirecting...';
-                    setTimeout(() => { window.location.href = data.redirect || DEFAULT_REDIRECT; }, 800);
+                    if (otpRequested) {
+                        showToast('Emergency Access Granted!', 'success');
+                        btn.textContent = 'Redirecting...';
+                        setTimeout(() => { window.location.href = data.redirect || DEFAULT_REDIRECT; }, 800);
+                    } else {
+                        otpRequested = true;
+                        updateEmergencyModalState();
+                        showToast(data.message || 'OTP sent to admin WhatsApp.', 'success');
+                        btn.disabled = false;
+                    }
                 } else {
                     showToast(data.message || 'Access denied.', 'error');
                     btn.disabled = false;
-                    btn.textContent = 'Unlock & Enter Admin';
-                    document.getElementById('emergency-pin').value = '';
-                    document.getElementById('emergency-pin').focus();
+                    updateEmergencyModalState();
+                    if (otpRequested) {
+                        document.getElementById('emergency-otp').value = '';
+                        document.getElementById('emergency-otp').focus();
+                    }
                 }
             } catch (err) {
                 showToast('Network error. Please try again.', 'error');
                 btn.disabled = false;
-                btn.textContent = 'Unlock & Enter Admin';
+                updateEmergencyModalState();
             }
         };
 

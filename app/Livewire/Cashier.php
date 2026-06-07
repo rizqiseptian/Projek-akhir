@@ -15,6 +15,21 @@ class Cashier extends Component
     public $cashPaid = '';
     public $successMessage = '';
     public $errorMessage = '';
+    public $transactions = [];
+
+    public function mount()
+    {
+        $this->loadTransactions();
+    }
+
+    private function loadTransactions()
+    {
+        $this->transactions = Transaction::where('employee_id', Auth::id() ?? 1)
+            ->with('items')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+    }
 
     public function addItem()
     {
@@ -91,6 +106,7 @@ class Cashier extends Component
 
         $this->successMessage = 'Transaction saved successfully. Change: $' . number_format($this->change, 2);
         $this->reset(['cart', 'newItemDescription', 'newItemPrice', 'cashPaid']);
+        $this->loadTransactions();
     }
 
     public function render()

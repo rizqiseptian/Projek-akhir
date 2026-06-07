@@ -12,10 +12,10 @@ test('admin login redirects to setup page when no admins exist', function () {
 
 test('admin login shows the login page when at least one admin exists', function () {
     Employee::create([
-        'name'            => 'Admin Boss',
-        'rfid_uid'        => '9999999999',
-        'is_active'       => true,
-        'is_admin'        => true,
+        'name' => 'Admin Boss',
+        'rfid_uid' => '9999999999',
+        'is_active' => true,
+        'is_admin' => true,
         'face_descriptor' => json_encode(array_fill(0, 128, 0.1)),
     ]);
 
@@ -32,10 +32,10 @@ test('setup page is accessible when no admins exist', function () {
 
 test('setup page redirects to admin login when an admin already exists', function () {
     Employee::create([
-        'name'            => 'Admin Boss',
-        'rfid_uid'        => '9999999999',
-        'is_active'       => true,
-        'is_admin'        => true,
+        'name' => 'Admin Boss',
+        'rfid_uid' => '9999999999',
+        'is_active' => true,
+        'is_admin' => true,
         'face_descriptor' => json_encode(array_fill(0, 128, 0.1)),
     ]);
 
@@ -45,19 +45,20 @@ test('setup page redirects to admin login when an admin already exists', functio
 
 test('registerFirstAdmin creates admin and logs in when no admin exists', function () {
     $response = $this->postJson(route('admin.register'), [
-        'name'            => 'New Admin',
-        'rfid_uid'        => 'ADMINCARD001',
+        'name' => 'New Admin',
+        'rfid_uid' => 'ADMINCARD001',
         'face_descriptor' => json_encode(array_fill(0, 128, 0.25)),
+        'whatsapp_number' => '+6281234567890',
     ]);
 
     $response->assertStatus(200)
         ->assertJson([
-            'success'  => true,
+            'success' => true,
             'redirect' => '/admin',
         ]);
 
     $this->assertDatabaseHas('employees', [
-        'name'     => 'New Admin',
+        'name' => 'New Admin',
         'rfid_uid' => 'ADMINCARD001',
         'is_admin' => true,
         'is_active' => true,
@@ -69,17 +70,19 @@ test('registerFirstAdmin creates admin and logs in when no admin exists', functi
 
 test('registerFirstAdmin is blocked when an admin already exists', function () {
     Employee::create([
-        'name'            => 'Existing Admin',
-        'rfid_uid'        => '9999999999',
-        'is_active'       => true,
-        'is_admin'        => true,
+        'name' => 'Existing Admin',
+        'rfid_uid' => '9999999999',
+        'whatsapp_number' => '+6281234567890',
+        'is_active' => true,
+        'is_admin' => true,
         'face_descriptor' => json_encode(array_fill(0, 128, 0.1)),
     ]);
 
     $response = $this->postJson(route('admin.register'), [
-        'name'            => 'Sneaky Second Admin',
-        'rfid_uid'        => 'NEWCARD001',
+        'name' => 'Sneaky Second Admin',
+        'rfid_uid' => 'NEWCARD001',
         'face_descriptor' => json_encode(array_fill(0, 128, 0.25)),
+        'whatsapp_number' => '+6281234567890',
     ]);
 
     $response->assertStatus(200)
@@ -94,9 +97,10 @@ test('registerFirstAdmin is blocked when an admin already exists', function () {
 
 test('registerFirstAdmin rejects invalid face descriptor', function () {
     $response = $this->postJson(route('admin.register'), [
-        'name'            => 'New Admin',
-        'rfid_uid'        => 'ADMINCARD001',
+        'name' => 'New Admin',
+        'rfid_uid' => 'ADMINCARD001',
         'face_descriptor' => json_encode([0.1, 0.2]), // Too short
+        'whatsapp_number' => '+6281234567890',
     ]);
 
     $response->assertStatus(200)
@@ -108,20 +112,33 @@ test('registerFirstAdmin rejects invalid face descriptor', function () {
     $this->assertDatabaseCount('employees', 0);
 });
 
+test('registerFirstAdmin requires whatsapp_number for first admin setup', function () {
+    $response = $this->postJson(route('admin.register'), [
+        'name' => 'New Admin',
+        'rfid_uid' => 'ADMINCARD001',
+        'face_descriptor' => json_encode(array_fill(0, 128, 0.25)),
+    ]);
+
+    $response->assertStatus(422);
+    $this->assertDatabaseCount('employees', 0);
+});
+
 test('registerFirstAdmin rejects duplicate rfid_uid', function () {
     Employee::create([
-        'name'            => 'Existing Employee',
-        'rfid_uid'        => 'DUPLICATE001',
-        'is_active'       => true,
-        'is_admin'        => false,
+        'name' => 'Existing Employee',
+        'rfid_uid' => 'DUPLICATE001',
+        'whatsapp_number' => '+6281234567890',
+        'is_active' => true,
+        'is_admin' => false,
         'face_descriptor' => json_encode(array_fill(0, 128, 0.1)),
     ]);
 
     // No admin exists, so setup is unlocked, but RFID is taken
     $response = $this->postJson(route('admin.register'), [
-        'name'            => 'New Admin',
-        'rfid_uid'        => 'DUPLICATE001',
+        'name' => 'New Admin',
+        'rfid_uid' => 'DUPLICATE001',
         'face_descriptor' => json_encode(array_fill(0, 128, 0.25)),
+        'whatsapp_number' => '+6281234567890',
     ]);
 
     $response->assertStatus(422); // Laravel validation error

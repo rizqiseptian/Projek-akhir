@@ -95,7 +95,7 @@ test('admin panel routes reject regular employees but allow admins', function ()
     ]);
 
     // Unauthenticated should redirect
-    $this->get('/admin')->assertRedirect(route('employee.login'));
+    $this->get('/admin')->assertRedirect(route('admin.login'));
 
     // Authenticated as employee should fail with 403
     $this->actingAs($employee)
